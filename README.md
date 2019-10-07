@@ -9,7 +9,7 @@ You’ll need to have Node 8.16.0 or Node 10.16.0 or later version on your local
 
 ```sh
 git clone the repo
-yarn start
+npm install or yarn
 yarn build
 serve -s build
 ```
