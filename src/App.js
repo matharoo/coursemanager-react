@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import logo from './logo.svg';
-import './App.css';
 import db from './db';
 import { Button, Table, Modal, ModalHeader, ModalBody, ModalFooter, Input, FormGroup, Label } from 'reactstrap';
+import Row from './components/Row';
 
 const App = () => {
   const [id, setId] = useState('');
-  const [newmark, setNewmark] = useState({sid:'',name:'',asgn1:'',asgn2:'',test1:'',test2:'',attnd:''})
+  const [newmark, setNewmark] = useState({sid:'','name':'',asgn1:'',asgn2:'',test1:'',test2:'',attnd:''})
   const [marks,setMarks] = useState([]);
+  const [weights,setWeights] = useState({});
   const [editmode,setEditmode] = useState(false);
   const [addModal, setAddModal] = useState(false)
   // const [dbFirstname, setLoading] = useState(true);
@@ -19,7 +19,7 @@ const App = () => {
       console.log("doing something to db :"+addModal);
 
       db.transaction('r', db.table('course'), async () => {
-        console.log("going to read");
+        console.log("going to read grades from course");
         // if the first or last name fields have not be added, add them
         await db.table('course')
         .toArray()
@@ -30,11 +30,39 @@ const App = () => {
         // log any errors
         console.log(e.stack || e)
       })
+
+      db.transaction('r', db.table('weights'), async () => {
+        console.log("going to read weights");
+        // if the first or last name fields have not be added, add them
+        await db.table('weights')
+        .toArray()
+        .then((wts) => {
+          setWeights(wts[0]);
+        });
+      }).catch(e => {
+        // log any errors
+        console.log(e.stack || e)
+      })
   
     },
     // run effect whenever the database connection changes
     []
   )
+
+  const addWeights = () =>{
+    const wts = { asgn1:20, asgn2:20, test1:30, test2:30 }
+    console.log("adding weights"+JSON.stringify(wts));
+    db.transaction('rw', db.table('weights'), async () => {
+      await db.table('weights').add(wts)
+      .then((id) => {
+        setWeights(wts)
+      })
+      .catch(e => {
+        // log any errors
+        console.log(e.stack || e)
+      })
+    })
+  }
 
   const handleChange = (e) => {
     console.log("changing state for "+e.target.name)
@@ -72,11 +100,13 @@ const App = () => {
   }
 
   const addMark = () => {
+    const mark = calculateAverage(newmark);
     db.transaction('rw', db.table('course'), async () => {
-      await db.table('course').add(newmark)
+      await db.table('course').add(mark)
       .then((id) => {
-        const newList = [...marks, Object.assign({}, newmark, { id })];
+        const newList = [...marks, Object.assign({}, mark, { id })];
         setMarks(newList)
+        setAddModal(false);
       })
       .catch(e => {
         // log any errors
@@ -87,22 +117,28 @@ const App = () => {
 
   const editMode = (e,data) => {
     console.log("editing row"+JSON.stringify(data));
-      Object.keys(data).map((value,index)=>{
+      Object.keys(data).map((value)=>{
         newmark[value] = data[value]
       })
       toggleAddModal(e);
   }
 
   const handleUpdate = () => {
-    console.log("record to be updated will be :"+id);
+    console.log("record to be updated will be :"+newmark.id);
+    console.log("all marks before update is "+JSON.stringify(marks))
+    const mark = calculateAverage(newmark);
+    console.log("Mark is: "+JSON.stringify(mark.id));
     db.transaction('rw', db.table('course'), async () => {
       await db.table('course')
-      .update(id,newmark)
+      .update(mark.id,mark)
       .then((updated) => {
-        console.log("updated is "+JSON.stringify(updated))
-        const newList = marks.map(mark => (mark.id === id ? {...mark, newmark} : mark))
-        console.log(newList)
-        setMarks(newList)
+        if(updated===1){
+          setMarks(marks.map(function (item) {
+            if (item.id !== mark.id) return item;
+            return mark;
+          }))
+          setAddModal(false);
+        }
       })
       .catch(e => {
         // log any errors
@@ -126,6 +162,26 @@ const App = () => {
       })
     })
   }
+
+  const calculateAverage = (data) =>{
+    console.log('Calculating Avg: '+data)
+    const assignmentweights = weights.asgn1+weights.asgn2
+    const totalassignmentscore = ((weights.asgn1/100)*data.asgn1) + ((weights.asgn2/100)*data.asgn2)
+    const assignmentspercent = (totalassignmentscore/assignmentweights)*100
+    const testweights = weights.test1 +weights.test2
+    const totaltestscore = ((weights.test1/100)*data.test1) + ((weights.test2/100)*data.test2) 
+    const testspercent = (totaltestscore/testweights)*100
+    const grade = totalassignmentscore + totaltestscore
+    console.log("grade is "+grade);
+    data['grade'] = (parseFloat(grade).toFixed(2)).toString();
+    if(assignmentspercent > 80 && testspercent > 80 && data.attnd >= 95){
+      data.pass = true
+    }
+    else{
+      data.pass = false
+    }
+    return data;
+  }
   
   return (
     <div className="App">
@@ -135,39 +191,32 @@ const App = () => {
             <h2>Course Manager</h2>
           </div>
           <div className="col-md-12 text-right">
-            <Button color="primary" onClick={toggleAddModal} name='add'>Add Grade</Button>
+            <Button color="primary" onClick={toggleAddModal} name='add'>Add Grade</Button>{' '}
+            <Button color="primary" onClick={addWeights} name='add'>Add Weights</Button>
           </div>
           <div className="col-md-12">
+          {
+            marks.length > 0 ? (
               <Table>
                 <thead>
                   <tr>
-                  {
-                      marks.length > 0 ? 
-                      Object.keys(marks[0]).map((header) => <th key={header} scope="col"><u>{header}</u></th>) 
-                        : 
-                        null
-                  }
+                      {
+                      Object.keys(marks[0]).filter((header)=>{
+                        return header!='id'
+                      }).map((header) => <th key={header} scope="col"><u>{header}</u></th>)
+                      }
                   </tr>
                 </thead>
                 <tbody>
                 {
-                marks.map((rowData, index) => 
-                  <tr key={index}>
-                    <th scope="row">{index+1}</th>
-                    <td>{rowData.name}</td>
-                    <td>{rowData.asgn1}</td>
-                    <td>{rowData.asgn2}</td>
-                    <td>{rowData.test1}</td>
-                    <td>{rowData.test2}</td>
-                    <td>{rowData.attnd}</td>
-                    <td>{rowData.grade}</td>
-                    <td><Button color="primary" onClick={(e)=>editMode(e,rowData)} name='edit'>Edit</Button>{' '}<Button color="danger" onClick={()=>handleDelete(rowData.id)}>Delete</Button></td>
-                    <td></td>
-                  </tr>
+                marks.map((rowData,index)=>
+                  <Row key={rowData.id} rowData={rowData} editMode={editMode} handleDelete={handleDelete} />
                 )
                 }
                 </tbody>
               </Table>
+            ):(null)
+          }
           </div>
         </div>
       </div>
