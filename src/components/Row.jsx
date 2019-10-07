@@ -1,6 +1,10 @@
 import React from 'react';
 import { Button } from 'reactstrap';
-//Dynamic row component which accepts all the object props and also recieves headers and then displays based on headers values.. so JSON can have as many properties inside the object. It will work fine as long as we have Object Array like sample-log file.
+
+/**
+ * Row component displaying the data for each record allowing each data row to have its own state and also allow edit and delete
+ * @param {*} props 
+ */
 const Row = (props) => {
     return (
         <tr key={props.rowData.index}>
