@@ -13,7 +13,7 @@ const Row = (props) => {
             <td className={props.rowData.attnd<95 ? 'bg-danger text-white':null}>{props.rowData.attnd}</td>
             <td>{props.rowData.grade}</td>
             <td className={props.rowData.pass ? 'bg-success text-white' : 'bg-danger text-white'}>{props.rowData.pass ? 'Pass' : 'Fail'}</td>
-            <td><Button color="secondary" onClick={(e)=>props.editMode(e,props.rowData)} name='edit'>Edit</Button>{' '}<Button color="close bg-danger text-white" onClick={()=>props.handleDelete(props.id)}><span aria-hidden="true">&times;</span></Button></td>
+            <td><Button color="secondary" onClick={(e)=>props.editMode(e,props.rowData)} name='edit'>Edit</Button>{' '}<Button color="close bg-danger text-white" onClick={()=>props.handleDelete(props.rowData.id)}><span aria-hidden="true">&times;</span></Button></td>
             <td></td>
       </tr>
     );
