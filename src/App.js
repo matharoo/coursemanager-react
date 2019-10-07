@@ -10,6 +10,7 @@ const App = () => {
   const [weights,setWeights] = useState({});
   const [editmode,setEditmode] = useState(false);
   const [addModal, setAddModal] = useState(false)
+  const [error,setError] = useState({})
   // const [dbFirstname, setLoading] = useState(true);
   // const [mounted, setMounted] = useState(false);
   useEffect(
@@ -46,7 +47,7 @@ const App = () => {
   
     },
     // run effect whenever the database connection changes
-    []
+    [db]
   )
 
   const addWeights = () =>{
@@ -65,11 +66,19 @@ const App = () => {
   }
 
   const handleChange = (e) => {
-    console.log("changing state for "+e.target.name)
-    const name = e.target.name;
-    const value = e.target.value;
+    const field = e.target.name;
+    let val = e.target.value;
+    if(field!='name'){
+      if (val.length > e.target.maxLength){
+        val = val.slice(0, e.target.maxLength)
+      }
+    }
+    else{
+      val = val.replace(/[^A-z\s]/g, '');
+    }
+    console.log("changing state for "+field)
     setNewmark(prevState => {
-      return { ...prevState, [name]: value }
+      return { ...prevState, [field]: val }
     });
   }
 
@@ -124,27 +133,24 @@ const App = () => {
   }
 
   const handleUpdate = () => {
-    console.log("record to be updated will be :"+newmark.id);
-    console.log("all marks before update is "+JSON.stringify(marks))
-    const mark = calculateAverage(newmark);
-    console.log("Mark is: "+JSON.stringify(mark.id));
-    db.transaction('rw', db.table('course'), async () => {
-      await db.table('course')
-      .update(mark.id,mark)
-      .then((updated) => {
-        if(updated===1){
-          setMarks(marks.map(function (item) {
-            if (item.id !== mark.id) return item;
-            return mark;
-          }))
-          setAddModal(false);
-        }
+      const mark = calculateAverage(newmark);
+      db.transaction('rw', db.table('course'), async () => {
+        await db.table('course')
+        .update(mark.id,mark)
+        .then((updated) => {
+          if(updated===1){
+            setMarks(marks.map(function (item) {
+              if (item.id !== mark.id) return item;
+              return mark;
+            }))
+            setAddModal(false);
+          }
+        })
+        .catch(e => {
+          // log any errors
+          console.log(e.stack || e)
+        })
       })
-      .catch(e => {
-        // log any errors
-        console.log(e.stack || e)
-      })
-    })
   }
 
   const handleDelete = (id) => {
@@ -192,7 +198,7 @@ const App = () => {
           </div>
           <div className="col-md-12 text-right">
             <Button color="primary" onClick={toggleAddModal} name='add'>Add Grade</Button>{' '}
-            <Button color="primary" onClick={addWeights} name='add'>Add Weights</Button>
+            <Button color="primary" onClick={addWeights} name='add'>Adjust Weights</Button>
           </div>
           <div className="col-md-12">
           {
@@ -224,25 +230,26 @@ const App = () => {
           <ModalHeader>Modal title</ModalHeader>
           <ModalBody>
             <FormGroup>
-              <Input type="text" value={newmark.sid} onChange={handleChange} name="sid" id="sid" placeholder="Student ID" />
+              <Input type="number" value={newmark.sid} onChange={handleChange} name="sid" id="sid" placeholder="Student ID" maxLength="7"/>
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.name} onChange={handleChange} name="name" id="name" placeholder="Student Name" />
+              <Input type="text" value={newmark.name} onChange={handleChange} name="name" id="name" placeholder="Student Name"/>
+              <span style={{color: "red"}}>{error.name}</span>
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.asgn1} onChange={handleChange} name="asgn1" id="asgn1" placeholder="Assignment 1" />
+              <Input type="number" value={newmark.asgn1} onChange={handleChange} name="asgn1" id="asgn1" placeholder="Assignment 1" min="1" max="100" maxLength="3" />
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.asgn2} onChange={handleChange} name="asgn2" id="asgn2" placeholder="Assignment 2" />
+              <Input type="number" value={newmark.asgn2} onChange={handleChange} name="asgn2" id="asgn2" placeholder="Assignment 2" min="1" max="100" maxLength="3" />
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.test1} onChange={handleChange} name="test1" id="test1" placeholder="Test 1" />
+              <Input type="number" value={newmark.test1} onChange={handleChange} name="test1" id="test1" placeholder="Test 1" min="1" max="100" maxLength="3" />
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.test2} onChange={handleChange} name="test2" id="test2" placeholder="Test 2" />
+              <Input type="number" value={newmark.test2} onChange={handleChange} name="test2" id="test2" placeholder="Test 2" min="1" max="100" maxLength="3" />
             </FormGroup>
             <FormGroup>
-              <Input type="text" value={newmark.attnd} onChange={handleChange} name="attnd" id="attnd" placeholder="Attendance" />
+              <Input type="number" value={newmark.attnd} onChange={handleChange} name="attnd" id="attnd" placeholder="Attendance" min="1" max="100" maxLength="3" />
             </FormGroup>
           </ModalBody>
           <ModalFooter>
