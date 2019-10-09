@@ -15,9 +15,10 @@ serve -s build
 ```
 
 ## Spinning up a docker container
+To run a docker container just run these commands if you have docker setup on your machine(tested on MacOSX Catalina):
 ```sh
 cd coursemanager-react
 docker build -t newreact .
 docker run -it -p 80:80 -d newreact
 ```
-Done. You can access the app on http://localhost 
+Done. Now the app will be served on container via nginx.You can access the app on http://localhost 
