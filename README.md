@@ -13,3 +13,11 @@ npm install or yarn
 yarn build
 serve -s build
 ```
+
+## Spinning up a docker container
+```sh
+cd coursemanager-react
+docker build -t newreact .
+docker run -it -p 80:80 -d newreact
+```
+Done. You can access the app on http://localhost 
