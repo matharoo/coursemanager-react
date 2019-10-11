@@ -10,7 +10,7 @@ const App = () => {
   const [editmode,setEditmode] = useState(false);
   const [gradeModal, setGradeModal] = useState(false)
   const [weightModal, setWeightModal] = useState(false)
-
+  const [filter,setFilter] = useState('')
   /**
    * Initilization function for populating lists by querying the db
    */
@@ -26,25 +26,13 @@ const App = () => {
       }).catch(e => {
         console.log(e.stack || e)
       })
-
-      db.transaction('r', db.table('weights'), async () => {
-        await db.table('weights')
-        .toArray()
-        .then((wts) => {
-          if(wts.length===1){
-            setWeights(wts[0]);
-          }
-        });
-      }).catch(e => {
-        console.log(e.stack || e)
-      })
   
     },[] // this ensure the lists are updated whenever database updates
   )
 
   /**
    * Listens to form inputs on the forms and updates the states
-   * @param {*} e listens for state changes for inputs when adding grades and weights
+   * @param {*} e listens for stat0e changes for inputs when adding grades and weights
    * @param {*} mode there are two modes; grades & weights which allows the function to listen to different form inputs and update the states marks & weights respectively
    */
   const handleChange = (e,mode) => {
@@ -75,6 +63,9 @@ const App = () => {
    * @param {*} e Listens to the form input events and hides and shows the grades modal for adding or editing modes
    */
   const toggleAddModal = (e) => {
+    if(Object.entries(weights).length === 0 && weights.constructor === Object){
+      loadWeights()
+    }
     const mode = e.target.name;
     if(mode==='edit') {
         setEditmode(true);
@@ -113,6 +104,23 @@ const App = () => {
         return newgrade[value] = data[value]
       })
       toggleAddModal(e);
+  }
+
+  /**
+   * Function to load weights from weights table in the db
+   */
+  const loadWeights = () =>{
+    db.transaction('r', db.table('weights'), async () => {
+      await db.table('weights')
+      .toArray()
+      .then((wts) => {
+        if(wts.length===1){
+          setWeights(wts[0]);
+        }
+      });
+    }).catch(e => {
+      console.log(e.stack || e)
+    })
   }
 
   /**
@@ -221,6 +229,26 @@ const App = () => {
     }
     return data;
   }
+
+  /**
+   * Function to update the filter state connected with input
+   * @param {*} e filter input event handler
+   */
+  const filterRecords = (e) =>{
+    setFilter(e.target.value);
+    console.log(e.target.value)
+  }
+
+  /**
+   * Filtered marks changes based on input in search filter
+   * Matches the input with all the column values and if match is found is added to the filtered array
+   */
+  const filtered = marks.filter(mark => {
+    return Object.keys(mark).some((key) => {
+      //convert the comparisons to lowercase to avoid case sensitivite chars
+      return mark[key].toString().toLowerCase().includes(filter.toLowerCase())
+    });
+  })
   
   return (
     <div className="App">
@@ -229,18 +257,27 @@ const App = () => {
           <div className="col-md-12">
             <h2>Course Manager</h2>
           </div>
-          <div className="col-md-12 text-right">
-          {weights.asgn1 ?
-            <div className="col-md-12">
-            <Button color="primary" onClick={toggleAddModal} name='add'>Add Grade</Button>
-            </div>
-            :
-            <Button color="primary" onClick={toggleWeightModal} name='add'>Adjust Weights</Button>
+        </div>
+          <div className="row">
+          { Object.keys(marks).length !==  0 || Object.keys(weights).length!==0 ?
+            <div className="col-md-10">
+              <div className="row">
+                <div className="col-md-4 mt-2 mb-2">
+                        <input className="form-control" value={filter} onChange={(e)=>filterRecords(e)} placeholder="Search or filter records" name="filter" />
+                </div>
+                <div className="col mt-2 mb-2 text-right">
+                  <Button color="primary" onClick={toggleAddModal} name='add'>Add Grade</Button>
+                </div>
+              </div>
+            </div> : null
           }
+            <div className="col mt-2 mb-2 text-right">
+              <Button color="primary" onClick={toggleWeightModal} name='add'>Adjust Weights</Button>
+            </div>
           </div>
           <div className="col-md-12">
           {
-            marks.length > 0 ? (
+            Object.keys(marks).length !==  0 ? (
               <Table>
                 <thead>
                   <tr>
@@ -253,16 +290,17 @@ const App = () => {
                 </thead>
                 <tbody>
                 {
-                marks.map((rowData,index)=>
+                filtered.map((rowData,index)=>
                   <Row key={rowData.id} rowData={rowData} editMode={editMode} handleDelete={handleDelete} />
                 )
                 }
                 </tbody>
               </Table>
-            ):(null)
+            ):<div className="alert alert-warning" role="alert">
+                No grades have been added!
+              </div>
           }
           </div>
-        </div>
       </div>
       <Modal isOpen={gradeModal} toggle={toggleAddModal} className="modal-dialog">
           <ModalHeader>Grade Form</ModalHeader>
@@ -325,7 +363,6 @@ const App = () => {
             <Button color="secondary" onClick={toggleWeightModal}>Cancel</Button>
           </ModalFooter>
       </Modal>
-
     </div>
   );
 }
