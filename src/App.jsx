@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import {
   Button, Table, Modal, ModalHeader, ModalBody, ModalFooter, Input, FormGroup,
 } from 'reactstrap';
-import db from './db';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCaretUp, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import Row from './components/Row';
+import db from './db';
+
 
 const App = () => {
   const [newgrade, setNewgrade] = useState({
@@ -57,6 +60,23 @@ const App = () => {
   };
 
   /**
+   * Function to load weights from weights table in the db
+   */
+  const loadWeights = () => {
+    db.transaction('r', db.table('weights'), async () => {
+      await db.table('weights')
+        .toArray()
+        .then((wts) => {
+          if (wts.length === 1) {
+            setWeights(wts[0]);
+          }
+        });
+    }).catch((e) => {
+      console.log(e.stack || e);
+    });
+  };
+
+  /**
    * Hides or shows grades modal form
    * @param {*} e Listens to the form input events and hides and shows the
    * grades modal for adding or editing modes
@@ -105,23 +125,6 @@ const App = () => {
   const editMode = (e, data) => {
     Object.keys(data).map((value) => newgrade[value] = data[value]);
     toggleAddModal(e);
-  };
-
-  /**
-   * Function to load weights from weights table in the db
-   */
-  const loadWeights = () => {
-    db.transaction('r', db.table('weights'), async () => {
-      await db.table('weights')
-        .toArray()
-        .then((wts) => {
-          if (wts.length === 1) {
-            setWeights(wts[0]);
-          }
-        });
-    }).catch((e) => {
-      console.log(e.stack || e);
-    });
   };
 
   /**
@@ -251,6 +254,31 @@ const App = () => {
   // convert the comparisons to lowercase to avoid case sensitivite chars
     mark[key].toString().toLowerCase().includes(filter.toLowerCase())));
 
+  /**
+   * comparison function for sorting the values based on key and mode
+   */
+  const comparison = (key, mode) => ((a, b) => {
+    if (mode === 'asc') {
+      if (a[key] < b[key]) return -1;
+      if (a[key] > b[key]) return 1;
+      return 0;
+    }
+    if (a[key] > b[key]) return -1;
+    if (a[key] < b[key]) return 1;
+    return 0;
+  });
+
+  /**
+   * Sort function to sort the table based on header key and mode (ascending/descending)
+   * @param {*} key the column key based on which the list will be sorted
+   * @param {*} mode sorting in descending or ascending mode
+   */
+  const sort = (key, mode) => {
+    const newarr = [...marks];
+    newarr.sort(comparison(key.header, mode));
+    setMarks(newarr);
+  };
+
   return (
     <div className="App">
       <div className="container">
@@ -284,13 +312,28 @@ const App = () => {
                 <thead>
                   <tr>
                     {
-                      Object.keys(marks[0]).filter((header) => header !== 'id').map((header) => <th key={header} scope="col"><u>{header}</u></th>)
+                      Object.keys(marks[0]).filter((header) => header !== 'id').map((header) => (
+                        <th key={header} name={header} scope="col" data-sort="header">
+                          <u>{header}</u>
+                          <span className="fa fa-stack">
+                            <FontAwesomeIcon icon={faCaretUp} onClick={() => sort({ header }, 'asc')} />
+                            <FontAwesomeIcon icon={faCaretDown} onClick={() => sort({ header }, 'desc')} />
+                          </span>
+                        </th>
+                      ))
                       }
                   </tr>
                 </thead>
                 <tbody>
                   {
-                filtered.map((rowData, index) => <Row key={rowData.id} rowData={rowData} editMode={editMode} handleDelete={handleDelete} />)
+                filtered.map((rowData, index) => (
+                  <Row
+                    key={rowData.id}
+                    rowData={rowData}
+                    editMode={editMode}
+                    handleDelete={handleDelete}
+                  />
+                ))
                 }
                 </tbody>
               </Table>
@@ -343,7 +386,7 @@ const App = () => {
             <Input type="number" value={weights.asgn1} onChange={(e) => handleChange(e, 'weights')} name="asgn1" id="asgn1" placeholder="Assignment 1" min="1" max="100" maxLength="3" />
           </FormGroup>
           <FormGroup>
-            <label htmlFor="asgn3">Assignment 2</label>
+            <label htmlFor="asgn2">Assignment 2</label>
             <Input type="text" value={weights.asgn2} onChange={(e) => handleChange(e, 'weights')} name="asgn2" id="asgn2" placeholder="Assignment 2" min="1" max="100" maxLength="3" />
           </FormGroup>
           <FormGroup>
